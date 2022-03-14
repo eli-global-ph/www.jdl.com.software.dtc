@@ -1,0 +1,29 @@
+#!/bin/sh
+# Flag set if any TWS is found
+TWS=0
+
+if git rev-parse --verify HEAD >/dev/null 2>&1; then
+    against=HEAD
+else
+    # Initial commit: diff against an empty tree object
+    against=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+fi
+
+# Look for TWS at end of line
+git diff --check --cached || TWS=1
+
+# Look for TWS before </programlisting> in xml files
+FILES=`git diff-index --name-only --cached $against -- *.xml`
+for i in $FILES; do
+    egrep -n "\s+<\/programlisting>" $i 
+    if [ $? -eq 0 ]; then
+        TWS=1
+        echo "$i: found trailing whitespace/s before </programlisting> in the line/s above"
+    fi
+done
+
+# Any TWS found? Then stop the commit.
+if [ $TWS -eq 1 ]; then
+    echo "==> Remove trailing whitespace/s before committing. If you anyway want to force the traling whitespace/s into the patch, run git commit -n to ignore the pre-commit hook."
+    exit 1
+fi
